@@ -1,0 +1,94 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'antlr'
+    id 'org.jetbrains.kotlin.jvm' version '1.7.20'
+    id 'org.jmailen.kotlinter' version "3.12.0"
+    id "com.github.ben-manes.versions" version '0.42.0'
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+group 'com.github.pambrose.antlr-calculator'
+version '1.0.0'
+
+configurations {
+    compile {
+        extendsFrom = extendsFrom.findAll { it != configurations.antlr }
+    }
+}
+
+dependencies {
+    antlr "org.antlr:antlr4:$antlr4_version"
+    compile "org.antlr:antlr4-runtime:$antlr4_version"
+}
+
+generateGrammarSource {
+    maxHeapSize = "64m"
+    arguments += ["-visitor", "-listener", "-long-messages"]
+}
+
+// kotlinter requires this
+lintKotlinMain {
+    dependsOn(generateGrammarSource)
+}
+
+compileKotlin {
+    kotlinOptions {
+        // useIR = true
+        jvmTarget = '1.8'
+    }
+    dependsOn generateGrammarSource
+}
+
+clean.doLast {
+    file('generated-src').deleteDir()
+}
+
+repositories {
+    mavenLocal()
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    //implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+
+    testImplementation "io.kotest:kotest-runner-junit5:$kotest_version"
+    testImplementation "io.kotest:kotest-assertions-core:$kotest_version"
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
+                }
+            }
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+        exceptionFormat "full"
+        showStandardStreams = true
+    }
+}
+
+kotlinter {
+    ignoreFailures = false
+    //indentSize = 2
+    reporters = ['checkstyle', 'plain']
+    experimentalRules = false
+    disabledRules = ["no-wildcard-imports", "indent", "final-newline", "comment-spacing", "max-line-length", "no-multi-spaces"]
+}
